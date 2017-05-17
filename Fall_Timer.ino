@@ -1,8 +1,4 @@
-//Demo for 4-Digit Display only by Catalex
-//Hardware: A 4-Digit Display
-//Board: Catduino or Arduino UNO R3,Arduino Mega2560...
-//IDE:   Arduino-1.0
-//Function: Display the timer on the digital tube.
+/********** Countdown timer by Dubina Sergey. Ukraine 2017 ***********/
 /*********************************************************************/
 #include <TimerOne.h>
 #include <Bounce2.h>
@@ -43,7 +39,7 @@ void setup()
     tm1637.init();
     //tm.init();
   
-    //Пин и нтервал кнопок для антидребезга
+    //Пин и интервал кнопок для антидребезга
     debouncer1.attach(B_START);
     debouncer1.interval(DEBOUNCETIME);
   
@@ -88,7 +84,7 @@ void loop()
     if (minute == 0 && second == 0)
         Timer1.stop();
     // В конце цикла сбрасываем флаг если не зажата не одна с кнопок
-    if (!digitalRead(B_RESET) && !digitalRead(B_RISE) && !digitalRead(B_START))
+    if (!value1 && !value2 && !value3)
         buttonFlag = true;
 }
 
@@ -116,12 +112,12 @@ void TimeUpdate(void)
 {
     if (ClockPoint)
     {
-        tm1637.point(B11111111);
+        tm1637.point(POINT_ON);
         //tm.point(POINT_ON);
     }
     else
     {
-        tm1637.point(0);
+        tm1637.point(POINT_OFF);
         //tm.point(POINT_OFF);
     } 
 
