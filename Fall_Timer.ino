@@ -38,7 +38,6 @@ void setup()
     pinMode(B_START, INPUT);
     pinMode(B_RISE, INPUT);
     pinMode(B_RESET, INPUT);
-	pinMode(BUZZER, OUTPUT);
 	
     tm1637.set(5);
     //tm.set();
