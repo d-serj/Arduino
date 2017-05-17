@@ -9,6 +9,7 @@
 #define B_START 5
 #define B_RISE 6
 #define B_RESET 7
+#define BUZZER 8
 #define CLK 3
 #define DIO 2
 #define DEBOUNCETIME 5
@@ -22,6 +23,9 @@ unsigned char minute     = 60;
 bool isStart             = false;
 bool buttonFlag          = true;
 bool firstStart          = true;
+int8_t value1;
+int8_t value2;
+int8_t value3;
 
 Bounce debouncer1 = Bounce(); // Антидребезг "Старт"
 Bounce debouncer2  = Bounce(); // Антидребезг "+1"
@@ -34,6 +38,8 @@ void setup()
     pinMode(B_START, INPUT);
     pinMode(B_RISE, INPUT);
     pinMode(B_RESET, INPUT);
+	pinMode(BUZZER, OUTPUT);
+	
     tm1637.set(5);
     //tm.set();
     tm1637.init();
@@ -57,22 +63,7 @@ void setup()
 }
 void loop()
 {
-    debouncer1.update();
-    debouncer2.update();
-    debouncer3.update();
-
-    int value1 = debouncer1.rose();
-    int value2 = debouncer2.rose();
-    int value3 = debouncer3.rose();
-    // Если нажата кнопка старт/стоп и флаг сработки кнопки true
-    if (value1 == HIGH && buttonFlag)
-        startFunc(); 
-
-    if (value2)
-        riseFunc();
-
-    if (value3)
-        resetFunc();
+	readButtons();
     
     if (Update == ON)
     {
@@ -110,14 +101,18 @@ void TimingISR(void)
 
 void TimeUpdate(void)
 {
-    if (ClockPoint)
+	if (ClockPoint)
     {
-        tm1637.point(POINT_ON);
+        tm1637.point(POINT_OFF);
+		
+		if (minute == 0 && second <= 20 && second > 0)
+			tone(BUZZER, 1900, 100);
         //tm.point(POINT_ON);
+		
     }
     else
     {
-        tm1637.point(POINT_OFF);
+        tm1637.point(POINT_ON);
         //tm.point(POINT_OFF);
     } 
 
@@ -158,13 +153,30 @@ void resetFunc (void)
 
 void riseFunc (void)
 {
-    minute++;
-    TimeUpdate();
-    tm1637.display(TimeDisp);
-    firstStart = false;
+	minute++;
+	TimeUpdate();
+	tm1637.display(TimeDisp);
+	firstStart = false;
 }
 
+// Функция обработки нажатия кнопок
 void readButtons (void)
 {
-    
+	debouncer1.update();
+	debouncer2.update();
+	debouncer3.update();
+	
+	value1 = debouncer1.rose();
+	value2 = debouncer2.rose();
+	value3 = debouncer3.rose();
+	
+	// Если нажата кнопка старт/стоп и флаг сработки кнопки true
+	if (value1 && buttonFlag)
+		startFunc(); 
+
+    if (value2)
+        riseFunc();
+
+    if (value3)
+        resetFunc();
 }
