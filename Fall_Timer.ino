@@ -21,7 +21,6 @@ unsigned char halfsecond = 0;
 unsigned char second     = 0;
 unsigned char minute     = 60;
 bool isStart             = false;
-bool buttonFlag          = true;
 bool firstStart          = true;
 int8_t value1;
 int8_t value2;
@@ -43,6 +42,7 @@ void setup()
     //tm.set();
     tm1637.init();
     //tm.init();
+	Serial.begin(9600);
   
     //Пин и интервал кнопок для антидребезга
     debouncer1.attach(B_START);
@@ -73,9 +73,6 @@ void loop()
 
     if (minute == 0 && second == 0)
         Timer1.stop();
-    // В конце цикла сбрасываем флаг если не зажата не одна с кнопок
-    if (!value1 && !value2 && !value3)
-        buttonFlag = true;
 }
 
 void TimingISR(void)
@@ -93,6 +90,11 @@ void TimingISR(void)
 
         second --;
         halfsecond = 0;
+
+        Serial.print(minute);
+        Serial.print(" : ");
+        Serial.println(second);
+        Serial.println();
     }
     // Serial.println(second);
     ClockPoint = (~ClockPoint) & 0x01;
@@ -124,6 +126,7 @@ void TimeUpdate(void)
 
 void startFunc (void)
 {
+    // инвертируем старт
     isStart = !isStart;
     // Если разрешен старт стартуем таймер
     if (!isStart)
@@ -135,9 +138,10 @@ void startFunc (void)
         minute = 60;
         second = 0;
     }
+
+    Serial.println(isStart);
     
     firstStart = false;
-    buttonFlag = false;
 }
 
 void resetFunc (void)
@@ -146,15 +150,25 @@ void resetFunc (void)
     second = 0;
     TimeUpdate();
     tm1637.display(TimeDisp);
+    Serial.print(minute);
+    Serial.print(" : ");
+    Serial.println(second);
     firstStart = true;
     Timer1.stop();
+    // Делаем флаг продолжения счета в false чтобы в функции startFunc начался счет
+    isStart = false;
 }
 
+/* Функция управления кнопкой RISE. Увеличение минут на +1 за каждое нажатие */
 void riseFunc (void)
 {
+	// Добавим +1 к минутам
 	minute++;
-	TimeUpdate();
+	TimeUpdate();				// Обновим время
 	tm1637.display(TimeDisp);
+	Serial.print(minute);
+	Serial.print(" : ");
+    Serial.println(second);
 	firstStart = false;
 }
 
@@ -170,12 +184,13 @@ void readButtons (void)
 	value3 = debouncer3.rose();
 	
 	// Если нажата кнопка старт/стоп и флаг сработки кнопки true
-	if (value1 && buttonFlag)
-		startFunc(); 
+	if (value1 == HIGH)
+		startFunc();
 
-    if (value2)
+    if (value2 == HIGH)
         riseFunc();
 
-    if (value3)
+    if (value3 == HIGH)
         resetFunc();
 }
+
