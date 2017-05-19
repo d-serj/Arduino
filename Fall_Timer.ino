@@ -183,13 +183,13 @@ void readButtons (void)
 	value2 = debouncer2.rose();
 	value3 = debouncer3.rose();
 	
-	// Если нажата кнопка старт/стоп и флаг сработки кнопки true
+	// Если нажата кнопка "старт/стоп"
 	if (value1 == HIGH)
 		startFunc();
-
+	// Если нажата кнопка "+1"
     if (value2 == HIGH)
         riseFunc();
-
+	// Если нажата кнопка "сброс"
     if (value3 == HIGH)
         resetFunc();
 }
