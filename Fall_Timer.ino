@@ -14,23 +14,23 @@
 #define DIO 2
 #define DEBOUNCETIME 5
 
-int8_t TimeDisp[] = {0x00, 0x00, 0x00, 0x00};
-unsigned char ClockPoint = 1;
-unsigned char Update;
-unsigned char halfsecond = 0;
-unsigned char second     = 0;
-unsigned char minute     = 60;
-bool isStart             = false;
-bool firstStart          = true;
-int8_t value1;
-int8_t value2;
-int8_t value3;
+int8_t    TimeDisp[] = {0x00, 0x00, 0x00, 0x00};
+int8_t    ClockPoint = 1;
+int8_t    Update;
+uint8_t   halfsecond = 0;
+uint8_t   second     = 0;
+uint8_t   minute     = 60;
+bool      isStart    = false;
+bool      firstStart = true;
+int8_t    value1;
+int8_t    value2;
+int8_t    value3;
 
-Bounce debouncer1 = Bounce(); // Антидребезг "Старт"
-Bounce debouncer2  = Bounce(); // Антидребезг "+1"
-Bounce debouncer3 = Bounce(); // Антидребезг "Сброс"
-TM1637 tm1637(CLK, DIO);
-//TM1637 tm(8,9);
+Bounce debouncer1 = Bounce();   // Антидребезг "Старт\Пауза"
+Bounce debouncer2  = Bounce();  // Антидребезг "+1"
+Bounce debouncer3 = Bounce();   // Антидребезг "Сброс"
+TM1637 tm1637_1(CLK, DIO);
+//TM1637 tm1637_2(8,9);
 
 void setup()
 {
@@ -38,13 +38,13 @@ void setup()
     pinMode(B_RISE, INPUT);
     pinMode(B_RESET, INPUT);
 	
-    tm1637.set(5);
-    //tm.set();
-    tm1637.init();
-    //tm.init();
+    tm1637_1.set(5);
+    //tm1637_2.set();
+    tm1637_1.init();
+    //tm1637_2.init();
 	Serial.begin(9600);
   
-    //Пин и интервал кнопок для антидребезга
+    //Пин кнопок и интервал для антидребезга
     debouncer1.attach(B_START);
     debouncer1.interval(DEBOUNCETIME);
   
@@ -57,24 +57,26 @@ void setup()
     Timer1.initialize(500000);      //timing for 500ms
     Timer1.stop();
     Timer1.attachInterrupt(TimingISR);  //declare the interrupt serve routine:TimingISR
-    tm1637.display(TimeDisp);
-    //tm.display(TimeDisp);
+    tm1637_1.display(TimeDisp);
+    //tm1637_2.display(TimeDisp);
 }
+
 void loop()
 {
-	readButtons();
+    readButtons();
     
     if (Update == ON)
     {
         TimeUpdate();
-        tm1637.display(TimeDisp);
-        //tm.display(TimeDisp);
+        tm1637_1.display(TimeDisp);
+        //tm1637_2.display(TimeDisp);
     }
 
     if (minute == 0 && second == 0)
         Timer1.stop();
 }
 
+/* Функция вызываемая по прерыванию (подсчет времени) */
 void TimingISR(void)
 {
     halfsecond ++;
@@ -102,20 +104,21 @@ void TimingISR(void)
 
 void TimeUpdate(void)
 {
+	// Мигаем ":" и пищим если осталось 20 секунд
 	if (ClockPoint)
     {
-        tm1637.point(POINT_OFF);
+        tm1637_1.point(POINT_OFF);
+		//tm1637_2.point(POINT_OFF);
 		
+		// Если осталось 20 секунд, то пишим зуммером
 		if (minute == 0 && second <= 20 && second > 0)
 			tone(BUZZER, 1900, 100);
-        //tm.point(POINT_ON);
-		
     }
     else
     {
-        tm1637.point(POINT_ON);
-        //tm.point(POINT_OFF);
-    } 
+        tm1637_1.point(POINT_ON);
+        //tm1637_2.point(POINT_ON);
+    }
 
     TimeDisp[0] = minute / 10;
     TimeDisp[1] = minute % 10;
@@ -124,9 +127,10 @@ void TimeUpdate(void)
     Update = OFF;
 }
 
+/* Функция управления кнопкой "Старт\Пауза". Счет или пауза счета при нажатии */
 void startFunc (void)
 {
-    // инвертируем старт
+    // инвертируем состояние кнопки
     isStart = !isStart;
     // Если разрешен старт стартуем таймер
     if (!isStart)
@@ -139,23 +143,28 @@ void startFunc (void)
         second = 0;
     }
 
-    Serial.println(isStart);
+    //Serial.println(isStart);
     
+    // Флаг старта в false чтобы следующие нажатие не сбросило время в "0"
     firstStart = false;
 }
 
+/* Функция управления кнопкой "СБРОС". Сброс минут и секунд до 0, остановка таймера */
 void resetFunc (void)
 {
+    // Присвоим минутам и секундам 0, после чего обновим время и отобразим его
     minute = 0;
     second = 0;
     TimeUpdate();
-    tm1637.display(TimeDisp);
+    tm1637_1.display(TimeDisp);
+    
     Serial.print(minute);
     Serial.print(" : ");
     Serial.println(second);
+    // Флаг старта в true, чтобы при нажатии "старт" выставить время в 60m0s
     firstStart = true;
     Timer1.stop();
-    // Делаем флаг продолжения счета в false чтобы в функции startFunc начался счет
+    // Делаем флаг продолжения счета в false чтобы в функции startFunc инвертировать в true
     isStart = false;
 }
 
@@ -164,10 +173,11 @@ void riseFunc (void)
 {
 	// Добавим +1 к минутам
 	minute++;
-	TimeUpdate();				// Обновим время
-	tm1637.display(TimeDisp);
-	Serial.print(minute);
-	Serial.print(" : ");
+    // Обновим время
+	TimeUpdate();				
+	tm1637_1.display(TimeDisp);
+    Serial.print(minute);
+    Serial.print(" : ");
     Serial.println(second);
 	firstStart = false;
 }
@@ -175,21 +185,25 @@ void riseFunc (void)
 // Функция обработки нажатия кнопок
 void readButtons (void)
 {
+	// Обновляем состояния кнопок
 	debouncer1.update();
 	debouncer2.update();
 	debouncer3.update();
-	
+
+    // value = 1 если изменение по положительному фронту
 	value1 = debouncer1.rose();
 	value2 = debouncer2.rose();
 	value3 = debouncer3.rose();
 	
-	// Если нажата кнопка "старт/стоп"
+	// Если нажата кнопка старт/пауза
 	if (value1 == HIGH)
 		startFunc();
-	// Если нажата кнопка "+1"
+
+    // Если нажата кнопка +1
     if (value2 == HIGH)
         riseFunc();
-	// Если нажата кнопка "сброс"
+
+    // Если нажата кнопка сброс
     if (value3 == HIGH)
         resetFunc();
 }
