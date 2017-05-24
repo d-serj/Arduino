@@ -22,9 +22,9 @@ uint8_t   second     = 0;
 uint8_t   minute     = 60;
 bool      isStart    = false;
 bool      firstStart = true;
-int8_t    value1;
-int8_t    value2;
-int8_t    value3;
+int8_t    startButtonPress;
+int8_t    riseButtonPress;
+int8_t    resetButtonPress;
 
 Bounce debouncer1 = Bounce();   // Антидребезг "Старт\Пауза"
 Bounce debouncer2  = Bounce();  // Антидребезг "+1"
@@ -102,6 +102,7 @@ void TimingISR(void)
     ClockPoint = (~ClockPoint) & 0x01;
 }
 
+/* Мигаем ":", обновляем массив данных для вывода на дисплей, пищим зуммером если осталось <20сек */
 void TimeUpdate(void)
 {
 	// Мигаем ":" и пищим если осталось 20 секунд
@@ -137,6 +138,8 @@ void startFunc (void)
         Timer1.stop();
     else
         Timer1.start();
+
+    // Если первый старт, то сбрасываем минуты и секунды
     if (firstStart)
     {
         minute = 60;
@@ -145,14 +148,14 @@ void startFunc (void)
 
     //Serial.println(isStart);
     
-    // Флаг старта в false чтобы следующие нажатие не сбросило время в "0"
+    // Флаг первого старта в false чтобы следующие нажатие не сбросило время в 60:00
     firstStart = false;
 }
 
 /* Функция управления кнопкой "СБРОС". Сброс минут и секунд до 0, остановка таймера */
 void resetFunc (void)
 {
-    // Присвоим минутам и секундам 0, после чего обновим время и отобразим его
+    // Присвоим минутам и секундам 0, после чего обновим буффер дисплея и отобразим время
     minute = 0;
     second = 0;
     TimeUpdate();
@@ -161,7 +164,7 @@ void resetFunc (void)
     Serial.print(minute);
     Serial.print(" : ");
     Serial.println(second);
-    // Флаг старта в true, чтобы при нажатии "старт" выставить время в 60m0s
+    // Флаг старта в true, чтобы при нажатии "старт" выставить время в 60:00
     firstStart = true;
     Timer1.stop();
     // Делаем флаг продолжения счета в false чтобы в функции startFunc инвертировать в true
@@ -190,21 +193,20 @@ void readButtons (void)
 	debouncer2.update();
 	debouncer3.update();
 
-    // value = 1 если изменение по положительному фронту
-	value1 = debouncer1.rose();
-	value2 = debouncer2.rose();
-	value3 = debouncer3.rose();
+    // = 1 если изменение по положительному фронту
+	startButtonPress = debouncer1.rose();
+	riseButtonPress = debouncer2.rose();
+	resetButtonPress = debouncer3.rose();
 	
 	// Если нажата кнопка старт/пауза
-	if (value1 == HIGH)
+	if (startButtonPress == HIGH)
 		startFunc();
 
     // Если нажата кнопка +1
-    if (value2 == HIGH)
+    if (riseButtonPress == HIGH)
         riseFunc();
 
     // Если нажата кнопка сброс
-    if (value3 == HIGH)
+    if (resetButtonPress == HIGH)
         resetFunc();
 }
-
