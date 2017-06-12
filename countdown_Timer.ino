@@ -11,8 +11,10 @@
 #define B_RISE 6
 #define B_RESET 7
 #define BUZZER 8
-#define CLK 3
-#define DIO 2
+#define CLK1 3
+#define DIO1 2
+#define CLK2 11
+#define DIO2 10
 /* END PINS */
 #define DEBOUNCETIME 5
 
@@ -31,8 +33,8 @@ int8_t    resetButtonPress;
 Bounce debouncer1 = Bounce();   // Антидребезг "Старт\Пауза"
 Bounce debouncer2 = Bounce();  	// Антидребезг "+1"
 Bounce debouncer3 = Bounce();   // Антидребезг "Сброс"
-TM1637 tm1637_1(CLK, DIO);
-//TM1637 tm1637_2(11,10);
+TM1637 tm1637_1(CLK1, DIO1);
+//TM1637 tm1637_2(CLK2,DIO2);
 
 void setup()
 {
