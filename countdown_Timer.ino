@@ -6,12 +6,14 @@
 
 #define ON 1
 #define OFF 0
+/* PINS */
 #define B_START 5
 #define B_RISE 6
 #define B_RESET 7
 #define BUZZER 8
 #define CLK 3
 #define DIO 2
+/* END PINS */
 #define DEBOUNCETIME 5
 
 int8_t    TimeDisp[] = {0x00, 0x00, 0x00, 0x00};
@@ -30,7 +32,7 @@ Bounce debouncer1 = Bounce();   // Антидребезг "Старт\Пауза
 Bounce debouncer2 = Bounce();  	// Антидребезг "+1"
 Bounce debouncer3 = Bounce();   // Антидребезг "Сброс"
 TM1637 tm1637_1(CLK, DIO);
-//TM1637 tm1637_2(8,9);
+//TM1637 tm1637_2(11,10);
 
 void setup()
 {
