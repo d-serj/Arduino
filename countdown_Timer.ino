@@ -182,13 +182,16 @@ void riseFunc (void)
 {
 	// Добавим +1 к минутам
 	minute++;
+	
 	// Обновим время
 	TimeUpdate();
 	tm1637_1.display(TimeDisp);
 	tm1637_2.display(TimeDisp);
-	Serial.print(minute);
+	
+	/*Serial.print(minute);
 	Serial.print(" : ");
-	Serial.println(second);
+	Serial.println(second);*/
+	
 	firstStart = false;
 }
 
