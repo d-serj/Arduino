@@ -6,7 +6,7 @@
 
 #define ON 1
 #define OFF 0
-/* PINS */
+/* BEGIN PINS */
 #define B_START 5
 #define B_RISE 6
 #define B_RESET 7
@@ -57,10 +57,12 @@ void setup()
 
 	debouncer3.attach(B_RESET);
 	debouncer3.interval(DEBOUNCETIME);
-
-	Timer1.initialize(500000);      //timing for 500ms
+	
+	//timing for 500ms
+	Timer1.initialize(500000);      
 	Timer1.stop();
-	Timer1.attachInterrupt(TimingISR);  //declare the interrupt serve routine:TimingISR
+	//declare the interrupt serve routine:TimingISR
+	Timer1.attachInterrupt(TimingISR);  
 	tm1637_1.display(TimeDisp);
 	tm1637_2.display(TimeDisp);
 }
@@ -203,7 +205,7 @@ void readButtons (void)
 	debouncer2.update();
 	debouncer3.update();
 
-	// = 1 если изменение по положительному фронту
+	// = 1 если изменение по отрицательному фронту
 	startButtonPress = debouncer1.fell();
 	riseButtonPress  = debouncer2.fell();
 	resetButtonPress = debouncer3.fell();
