@@ -34,7 +34,7 @@ Bounce debouncer1 = Bounce();   // Антидребезг "Старт\Пауза
 Bounce debouncer2 = Bounce();  	// Антидребезг "+1"
 Bounce debouncer3 = Bounce();   // Антидребезг "Сброс"
 TM1637 tm1637_1(CLK1, DIO1);
-//TM1637 tm1637_2(CLK2,DIO2);
+TM1637 tm1637_2(CLK2,DIO2);
 
 void setup()
 {
@@ -43,10 +43,10 @@ void setup()
 	pinMode(B_RESET, INPUT);
 
 	tm1637_1.set(5);
-	//tm1637_2.set();
+	tm1637_2.set(5);
 	tm1637_1.init();
-	//tm1637_2.init();
-	Serial.begin(9600);
+	tm1637_2.init();
+	//Serial.begin(9600);
 
 	//Пин кнопок и интервал для антидребезга
 	debouncer1.attach(B_START);
@@ -62,7 +62,7 @@ void setup()
 	Timer1.stop();
 	Timer1.attachInterrupt(TimingISR);  //declare the interrupt serve routine:TimingISR
 	tm1637_1.display(TimeDisp);
-	//tm1637_2.display(TimeDisp);
+	tm1637_2.display(TimeDisp);
 }
 
 void loop()
@@ -73,7 +73,7 @@ void loop()
 	{
 		TimeUpdate();
 		tm1637_1.display(TimeDisp);
-		//tm1637_2.display(TimeDisp);
+		tm1637_2.display(TimeDisp);
 	}
 
 	if (minute == 0 && second == 0)
@@ -97,10 +97,10 @@ void TimingISR(void)
 		second --;
 		halfsecond = 0;
 
-		Serial.print(minute);
+		/*Serial.print(minute);
 		Serial.print(" : ");
 		Serial.println(second);
-		Serial.println();
+		Serial.println();*/
 	}
 	// Serial.println(second);
 	ClockPoint = (~ClockPoint) & 0x01;
@@ -113,16 +113,16 @@ void TimeUpdate(void)
 	if (ClockPoint)
 	{
 		tm1637_1.point(POINT_OFF);
-		//tm1637_2.point(POINT_OFF);
+		tm1637_2.point(POINT_OFF);
 
-		// Если осталось 20 секунд, то пишим зуммером
+		// Если осталось 20 секунд, то пищим зуммером
 		if (minute == 0 && second <= 20 && second > 0)
 			tone(BUZZER, 1900, 100);
 	}
 	else
 	{
 		tm1637_1.point(POINT_ON);
-		//tm1637_2.point(POINT_ON);
+		tm1637_2.point(POINT_ON);
 	}
 
 	TimeDisp[0] = minute / 10;
@@ -164,11 +164,12 @@ void resetFunc (void)
 	second = 0;
 	TimeUpdate();
 	tm1637_1.display(TimeDisp);
-	//tm1637_2.display(TimeDisp);
+	tm1637_2.display(TimeDisp);
 
-	Serial.print(minute);
+	/*Serial.print(minute);
 	Serial.print(" : ");
-	Serial.println(second);
+	Serial.println(second);*/
+	
 	// Флаг старта в true, чтобы при нажатии "старт" выставить время в 60:00
 	firstStart = true;
 	Timer1.stop();
@@ -184,7 +185,7 @@ void riseFunc (void)
 	// Обновим время
 	TimeUpdate();
 	tm1637_1.display(TimeDisp);
-	//tm1637_2.display(TimeDisp);
+	tm1637_2.display(TimeDisp);
 	Serial.print(minute);
 	Serial.print(" : ");
 	Serial.println(second);
