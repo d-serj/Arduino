@@ -163,7 +163,6 @@ void startFunc (void)
         {
             minute = 60;
             second = 0;
-            Serial.println(TCCR1B, BIN);
         }
     }
     
