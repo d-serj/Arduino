@@ -151,10 +151,13 @@ void loop()
 	static uint8_t formattingText;
 	static uint8_t countMeasurements;
 
-	button1.update();
-
-	buttonPress1 = button1.fell();
-	checkButton = HIGH;
+	checkButton = button1.update();
+	if (checkButton)
+	{
+		// TODO доделать логику чтения кнопки!!!
+		buttonPress1 = button1.read();
+	}
+	
 
 	currentMillis = millis();
 
