@@ -158,6 +158,7 @@ void loop()
 
 	currentMillis = millis();
 
+	// Определяем долгое нажатие кнопки для сброса нулевой точки и максимальной высоты
 	if (buttonPress1 == LOW && (currentMillis - buttonMillis > LONGPRESS))
 	{
 		zeroPreassure = preassureAverageFinal / 100.0;
@@ -169,41 +170,45 @@ void loop()
 
 	if (buttonPress1 == LOW)
 	{
-		++formattingText;
+		//++formattingText;
 
-		if (formattingText > 2)
+		if (++formattingText > 2)
 			formattingText = 0;
 
 		buttonPress1 = HIGH;
 		printToScreen(altitude, formattingText);
 	}
 
-//------------------------------------------------------------------
+//---- Усреднение значений давления. Измерение каждый цикл с задержкой DELAY_TO_MEASURE_MS ----------
 	if (currentMillis - measurementMillis >= DELAY_TO_MEASURE_MS)
 	{
 		preassureArray[countMeasurements] = bme.readPressure();
 		preassureAverage += preassureArray[countMeasurements];
-		Serial.println(preassureArray[countMeasurements]);
+		//Serial.println(preassureArray[countMeasurements]);
 		
-		countMeasurements++;
+		//countMeasurements++;
 
-		if (countMeasurements > MEASUREMENTS - 1)
+		// Если дошли до конца массива
+		if (++countMeasurements > MEASUREMENTS - 1)
 		{
+			// Получаем финальное среднее значение с выборки измерений
 			preassureAverageFinal = preassureAverage / MEASUREMENTS;
+			// Расчитываем высоту
 			altitude = calcAltitude(zeroPreassure, preassureAverageFinal);
-
+			
+			// Расчитвыем максимально набранную высоту
 			if (altitude > maxAltitude)
 				maxAltitude = altitude;
 
+			// Сбрасываем счетчик и среднее значене
 			countMeasurements = 0;
 			preassureAverage = 0;
 		}
 
 		measurementMillis = currentMillis;
 	}
-//-------------------------------------------------------------------
 
-
+	// Раз в DELAY_TO_SCREEN_MS обновляем экран
 	if (currentMillis - screenMillis >= DELAY_TO_SCREEN_MS)
 	{
 		// IN MM/RH
@@ -212,13 +217,10 @@ void loop()
 		screenMillis = currentMillis;
 	}
 
-
 	Serial.println(preassureAverage);
-	
-	// Отладка
-	//
 }
 
+/* Печать высоты и максимальной высоты на экран, с необходимым форматированием */
 void printToScreen(float data, uint8_t formatting)
 {
 	char buffer[20];
@@ -252,10 +254,11 @@ void printToScreen(float data, uint8_t formatting)
 	}
 }
 
-
+/* Расчет высоты в метрах */
 float calcAltitude(float seaLevelhPa, float pressure) 
 {
 	float altitude;
+	
 	pressure /= 100.0;
 	altitude = 44330.0 * (1.0 - pow(pressure / seaLevelhPa, 0.190295));
 	return altitude;
