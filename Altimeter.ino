@@ -6,11 +6,19 @@
 #include <Bounce2.h>
 
 #define BUTTON1_PIN  5
-#define BUTTON2_PIN  6
-#define MEASUREMENTS 20
+#define MEASUREMENTS 10
 #define DELAY_TO_SCREEN_MS     1000
 #define DELAY_TO_MEASURE_MS    100
 #define LONGPRESS              3000
+
+void measurements(void);
+
+enum screens
+{
+	FIRST_SCREEN,
+	SECOND_SCREEN,
+	THIRD_SCREEN
+};
 
 Adafruit_BMP280 bme;
 Bounce button1 = Bounce();
@@ -84,7 +92,7 @@ const uint8_t Socol[] PROGMEM = {
 
 float preassureArray[MEASUREMENTS];
 float temperatureArray[MEASUREMENTS];
-float preassureAverage		  = 0;
+float preassureAverage		  = 0;			
 float temperatureAverage	  = 0;
 float preassureAverageFinal   = 0;
 float temperatureAverageFinal = 0;
@@ -98,19 +106,18 @@ void setup()
 	button1.attach(BUTTON1_PIN);
 	button1.interval(10); // interval in ms
 
-	if (!bme.begin()) {
-		Serial.println(F("Could not find a valid BMP280 sensor, check wiring!"));
-		while (1);
-	}
-
-	delay(50);
-
 	ssd1306_setFixedFont(ssd1306xled_font6x8);
 	ssd1306_128x64_i2c_init();
 
 	ssd1306_clearScreen();
 	ssd1306_drawBitmap(0, 0, 128, 64, Socol);
 	delay(100);
+
+	if (!bme.begin()) {
+		ssd1306_printFixedN(10, 32, "ERROR BM280", STYLE_NORMAL, FONT_SIZE_2X);
+		while (1);
+	}
+	delay(50);
 
 	// Первое заполнение массива и измерение высоты
 	for (uint8_t i = 0; i < MEASUREMENTS; i++)
@@ -126,7 +133,7 @@ void setup()
 
 	delay(1200);
 	ssd1306_clearScreen();
-	printToScreen(0);
+	printToScreen(FIRST_SCREEN);
 }
 
 void loop()
@@ -138,13 +145,12 @@ void loop()
 	static bool checkButton;
 	static bool buttonPress1;
 	static bool buttonLongPress1 = true;
-	static uint8_t formattingText;
-	static uint8_t countMeasurements;
+	static uint8_t screen;
 
 	currentMillis = millis();
+
 	/*--------------------------------------------------------------------------*/
 	// Обработка нажатия кнопки.
-
 	buttonPress1 = button1.update();
 
 	// Обработка долгого нажатия кнопки
@@ -160,20 +166,9 @@ void loop()
 		// Прошло LONGPRESS время, тогда сбрасываем ZERO точку и MAX высоту в 0
 		else if (currentMillis - buttonMillis > LONGPRESS)
 		{
-			zeroPreassure = preassureAverageFinal / 100.0;
-			maxAltitude = 0;
-			altitude = 0;
+			resetAltitude();
 
-			// Вывод инфо на экран
-			ssd1306_clearScreen();
-			ssd1306_printFixedN(10, 6,  "BbICOTA", STYLE_NORMAL, FONT_SIZE_2X);
-			ssd1306_printFixedN(10, 16, " / MAX", STYLE_NORMAL, FONT_SIZE_2X);
-			ssd1306_printFixedN(30, 32, "BbICOTA", STYLE_NORMAL, FONT_SIZE_2X);
-			ssd1306_printFixedN(10, 48, " RESET", STYLE_BOLD, FONT_SIZE_2X);
-			delay(4000);
-			ssd1306_clearScreen();
-
-			formattingText = 0;
+			screen = FIRST_SCREEN;
 			buttonMillis = currentMillis;
 			buttonLongPress1 = true;
 		}
@@ -185,61 +180,34 @@ void loop()
 	// Меняем тип отображения информации на экране
 	if (buttonPress1 && button1.rose())
 	{
-		++formattingText;
+		++screen;
 
-		if (formattingText > 2)
-			formattingText = 0;
+		if (screen > THIRD_SCREEN)
+			screen = FIRST_SCREEN;
 
 		ssd1306_clearScreen();
-		printToScreen(formattingText);
+		printToScreen(screen);
 	}
 
-	/*------------------ Измерения --------------------------------------*/
-	// Измерения производятся MEASUREMENTS раз, после чего усредняются
-	// Если время измерять очередное показание давления, 
-	// то измеряем MEASUREMENTS - 1 раз
+	/* Если время измерения, то измеряем температуру и давление */
 	if (currentMillis - measurementMillis >= DELAY_TO_MEASURE_MS)
 	{
-		preassureArray[countMeasurements] = bme.readPressure();
-		temperatureArray[countMeasurements] = bme.readTemperature();
-		preassureAverage += preassureArray[countMeasurements];
-		temperatureAverage += temperatureArray[countMeasurements];
-		//Serial.println(preassureArray[countMeasurements]);			// DEBUG
-
-		countMeasurements++;
-
-		// Если последнее измерение
-		if (countMeasurements > MEASUREMENTS - 1)
-		{
-			preassureAverageFinal = preassureAverage / MEASUREMENTS;
-			temperatureAverageFinal = temperatureAverage / MEASUREMENTS;
-			// Расчитываем высоту и максимально набранную высоту
-			altitude = calcAltitude(zeroPreassure, preassureAverageFinal);
-
-			if (altitude > maxAltitude)
-				maxAltitude = altitude;
-
-			// Сбрасываем счетчик и среднее давление в ноль
-			countMeasurements = 0;
-			preassureAverage  = 0;
-			temperatureAverage = 0;
-		}
-
+		measurements();
 		measurementMillis = currentMillis;
 	}
-	//-------------------------------------------------------------------
-	// Экран
+	
+	/*-------------------------------------------------------------------*/
 	//Обновляем экран
 	if (currentMillis - screenMillis >= DELAY_TO_SCREEN_MS)
 	{
 		// IN MM/RH
 		//Serial.println(float((preassureAverage)*0.007501), 1);
-		printToScreen(formattingText);
+		printToScreen(screen);
 		screenMillis = currentMillis;
 	}
 }
 
-/*---- Печать информации о высоте на экран ----*/
+/*---- Печать информации на экран ----*/
 void printToScreen(uint8_t formatting)
 {
 	const uint8_t bufferSize = 20;
@@ -248,13 +216,12 @@ void printToScreen(uint8_t formatting)
 
 	switch (formatting)
 	{
-	case 0:
+	case FIRST_SCREEN:
 		// Высота
 		dtostrf(altitude, 4, 1, buffer);
-		sprintf(screenBuffer, "BbICOTA     [%s M]", buffer);
-		ssd1306_printFixed(0, 16, "                    ", STYLE_NORMAL);
-		ssd1306_printFixed(5, 16, screenBuffer, STYLE_NORMAL);
-		
+		sprintf(screenBuffer, "BbICOTA     [%4.5s M]", buffer);
+		//ssd1306_printFixedN(0, 16, "                    ", STYLE_NORMAL, FONT_SIZE_NORMAL);
+		ssd1306_printFixedN(0, 16, screenBuffer, STYLE_NORMAL, FONT_SIZE_NORMAL);
 		// Очистка буферов
 		for (uint8_t i = 0; i < bufferSize; ++i)
 		{
@@ -264,9 +231,9 @@ void printToScreen(uint8_t formatting)
 
 		// Максимальная высота
 		dtostrf(maxAltitude, 4, 1, buffer);
-		sprintf(screenBuffer, "MAX BbICOTA [%s M]", buffer);
-		ssd1306_printFixedN(0, 32, "                    ", STYLE_NORMAL, FONT_SIZE_NORMAL);
-		ssd1306_printFixedN(5, 32, screenBuffer, STYLE_NORMAL, FONT_SIZE_NORMAL);
+		sprintf(screenBuffer, "MAX BbICOTA [%4.5s M]", buffer);
+		//ssd1306_printFixedN(0, 32, "                    ", STYLE_NORMAL, FONT_SIZE_NORMAL);
+		ssd1306_printFixedN(0, 32, screenBuffer, STYLE_NORMAL, FONT_SIZE_NORMAL);
 
 		for (uint8_t i = 0; i < bufferSize; ++i)
 		{
@@ -276,26 +243,31 @@ void printToScreen(uint8_t formatting)
 
 		// Температура
 		dtostrf(temperatureAverageFinal, 4, 1, buffer);
-		sprintf(screenBuffer, "TEMP        [%s C]", buffer);
-		ssd1306_printFixedN(0, 48, "                    ", STYLE_NORMAL, FONT_SIZE_NORMAL);
-		ssd1306_printFixedN(5, 48, screenBuffer, STYLE_NORMAL, FONT_SIZE_NORMAL);
+		sprintf(screenBuffer, "TEMP        [%3.4s C]", buffer);
+		//ssd1306_printFixedN(0, 48, "                    ", STYLE_NORMAL, FONT_SIZE_NORMAL);
+		ssd1306_printFixedN(0, 48, screenBuffer, STYLE_NORMAL, FONT_SIZE_NORMAL);
 		break;
 
-	case 1:
+	case SECOND_SCREEN:
 		dtostrf(altitude, 4, 1, buffer);
+		sprintf(screenBuffer, "%4.5s", buffer);
 		ssd1306_printFixedN(10, 14, "BbICOTA", STYLE_NORMAL, FONT_SIZE_2X);
-		ssd1306_printFixedN(0, 32, "      ", STYLE_NORMAL, FONT_SIZE_4X);
+		//ssd1306_printFixedN(0, 32, "      ", STYLE_NORMAL, FONT_SIZE_4X);
 		ssd1306_printFixedN(0, 32, buffer, STYLE_NORMAL, FONT_SIZE_4X);
 		break;
-	case 2:
+
+	case THIRD_SCREEN:
 		dtostrf(maxAltitude, 4, 1, buffer);
+		sprintf(screenBuffer, "%4.5s", buffer);
 		ssd1306_printFixedN(0, 6, "MAX", STYLE_NORMAL, FONT_SIZE_2X);
 		ssd1306_printFixedN(40, 15, "BbICOTA", STYLE_NORMAL, FONT_SIZE_2X);
-		ssd1306_printFixedN(0, 32, "      ", STYLE_NORMAL, FONT_SIZE_4X);
+		delay(1);
+		//ssd1306_printFixedN(0, 32, "      ", STYLE_NORMAL, FONT_SIZE_4X);
 		ssd1306_printFixedN(0, 32, buffer, STYLE_NORMAL, FONT_SIZE_4X);
 		break;
 	}
 }
+
 
 /*---- Расчет высоты в метрах в зависимости от текущего давления ----*/
 float calcAltitude(float seaLevelhPa, float pressure)
@@ -304,4 +276,55 @@ float calcAltitude(float seaLevelhPa, float pressure)
 	pressure /= 100.0;
 	f_altitude = 44330.0 * (1.0 - pow(pressure / seaLevelhPa, 0.190295));
 	return f_altitude;
+}
+
+/*------------------ Измерения высоты и температуры -------------------------*/
+// Измерения производятся MEASUREMENTS раз, после чего усредняются
+// Если время измерять очередное показание давления, 
+// то измеряем MEASUREMENTS - 1 раз
+inline void measurements(void)
+{
+	static uint8_t countMeasurements;
+
+	preassureArray[countMeasurements] = bme.readPressure();
+	temperatureArray[countMeasurements] = bme.readTemperature();
+	preassureAverage += preassureArray[countMeasurements];
+	temperatureAverage += temperatureArray[countMeasurements];
+	//Serial.println(preassureArray[countMeasurements]);			// DEBUG
+
+	countMeasurements++;
+
+	// Если последнее измерение
+	if (countMeasurements > MEASUREMENTS - 1)
+	{
+		preassureAverageFinal = preassureAverage / MEASUREMENTS;
+		temperatureAverageFinal = temperatureAverage / MEASUREMENTS;
+		// Расчитываем высоту
+		altitude = calcAltitude(zeroPreassure, preassureAverageFinal);
+		// и максимально набранную высоту
+		if (altitude > maxAltitude)
+			maxAltitude = altitude;
+
+		// Сбрасываем счетчик, среднее давление и температуру в ноль
+		countMeasurements = 0;
+		preassureAverage = 0;
+		temperatureAverage = 0;
+	}
+}
+
+/* Сбрасываем высоту, ZERO точку и максимальную высоту в 0 */
+void resetAltitude(void)
+{
+	zeroPreassure = preassureAverageFinal / 100.0;
+	maxAltitude = 0;
+	altitude = 0;
+
+	// Вывод инфо на экран
+	ssd1306_clearScreen();
+	ssd1306_printFixedN(10, 6, "BbICOTA", STYLE_NORMAL, FONT_SIZE_2X);
+	ssd1306_printFixedN(10, 16, " / MAX", STYLE_NORMAL, FONT_SIZE_2X);
+	ssd1306_printFixedN(30, 32, "BbICOTA", STYLE_NORMAL, FONT_SIZE_2X);
+	ssd1306_printFixedN(10, 48, " RESET", STYLE_BOLD, FONT_SIZE_2X);
+	delay(3000);
+	ssd1306_clearScreen();
 }
