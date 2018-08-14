@@ -17,7 +17,9 @@ enum screens
 {
 	FIRST_SCREEN,
 	SECOND_SCREEN,
-	THIRD_SCREEN
+	THIRD_SCREEN,
+	FOUR_SCREEN,
+	SLEEP_SCREEN
 };
 
 Adafruit_BMP280 bme;
@@ -182,8 +184,11 @@ void loop()
 	{
 		++screen;
 
-		if (screen > THIRD_SCREEN)
+		if (screen > SLEEP_SCREEN)
+		{
 			screen = FIRST_SCREEN;
+			ssd1306_displayOn();
+		}
 
 		ssd1306_clearScreen();
 		printToScreen(screen);
@@ -252,7 +257,6 @@ void printToScreen(uint8_t formatting)
 		dtostrf(altitude, 4, 1, buffer);
 		sprintf(screenBuffer, "%4.5s", buffer);
 		ssd1306_printFixedN(10, 14, "BbICOTA", STYLE_NORMAL, FONT_SIZE_2X);
-		//ssd1306_printFixedN(0, 32, "      ", STYLE_NORMAL, FONT_SIZE_4X);
 		ssd1306_printFixedN(0, 32, buffer, STYLE_NORMAL, FONT_SIZE_4X);
 		break;
 
@@ -264,6 +268,20 @@ void printToScreen(uint8_t formatting)
 		delay(1);
 		//ssd1306_printFixedN(0, 32, "      ", STYLE_NORMAL, FONT_SIZE_4X);
 		ssd1306_printFixedN(0, 32, buffer, STYLE_NORMAL, FONT_SIZE_4X);
+		break;
+
+	case FOUR_SCREEN:
+		dtostrf(temperatureAverageFinal, 4, 1, buffer);
+		sprintf(screenBuffer, "%4.5s", buffer);
+		ssd1306_printFixedN(10, 14, "TEM-PA C", STYLE_NORMAL, FONT_SIZE_2X);
+		delay(1);
+		//ssd1306_printFixedN(0, 32, "      ", STYLE_NORMAL, FONT_SIZE_4X);
+		ssd1306_printFixedN(0, 32, buffer, STYLE_NORMAL, FONT_SIZE_4X);
+		break;
+
+	case SLEEP_SCREEN:
+		ssd1306_printFixedN(6, 16, "Screen sleeping...", STYLE_NORMAL, FONT_SIZE_NORMAL);
+		sleepScreen();
 		break;
 	}
 }
@@ -327,4 +345,45 @@ void resetAltitude(void)
 	ssd1306_printFixedN(10, 48, " RESET", STYLE_BOLD, FONT_SIZE_2X);
 	delay(3000);
 	ssd1306_clearScreen();
+}
+
+void sleepScreen(void)
+{
+	const uint32_t screenSleep = 2000;
+	const uint32_t screenWork = 1000;
+
+	static uint8_t needOff = 0;
+	static uint32_t lastMillis;
+	uint32_t nowMillis;
+
+	nowMillis = millis();
+
+	if (nowMillis - lastMillis <= screenWork)
+	{
+		/*
+		if (needOff)
+		{
+			ssd1306_displayOff();
+			needOff = 0;
+		}
+
+		else
+		{
+			ssd1306_displayOn();
+			needOff = 1;
+		}
+		*/
+		ssd1306_displayOn();
+	}
+	
+	if ((nowMillis - lastMillis > screenWork) && (nowMillis - lastMillis < screenSleep))
+	{
+		ssd1306_displayOff();
+	}
+
+	else
+	{
+		lastMillis = millis();
+	}
+
 }
